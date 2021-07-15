@@ -42,8 +42,8 @@ docker run --name wp-virtuoso-httpd \
     -e SNORQL_ENDPOINT=https://sparql.wikipathways.org/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/wikipathways/SPARQLQueries \
     -e SNORQL_TITLE="WikiPathways Snorql UI" \
-    -v PATH_TO_VIRTUOSO_DATA_FOLDER:/data \
-    -v PATH_TO_VIRTUOSO_IMPORT_FOLDER:/import \
+    -v /home/MarvinMartens/WikiPathways/data:/data \
+    -v /home/MarvinMartens/WikiPathways/import:/import \
     -d virtuoso-httpd
 ```
 
