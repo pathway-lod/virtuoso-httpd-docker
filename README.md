@@ -39,7 +39,7 @@ docker run --name wp-virtuoso-httpd \
     -e DBA_PASSWORD=PASSWORD_HERE \
     -e SPARQL_UPDATE=true \
     -e DEFAULT_GRAPH=http://example.com \
-    -e SNORQL_ENDPOINT=http://sparql.wikipathways.org/sparql \
+    -e SNORQL_ENDPOINT=https://sparql.wikipathways.org/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/wikipathways/SPARQLQueries \
     -e SNORQL_TITLE="WikiPathways Snorql UI" \
     -v PATH_TO_VIRTUOSO_DATA_FOLDER:/data \
