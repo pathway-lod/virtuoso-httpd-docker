@@ -2,7 +2,7 @@
 
 This repository is made to create a docker image that can run both Virtuoso and Apache web server in one container. It also facilitate data import into Virtuoso using custom-made bash script.
 
-
+The WikiPathways SPARQL endpoint and SNORQL UI run on http://81.169.200.64:8895/sparql and http://81.169.200.64:8085. 
 
 ## Step 1 - Clone this repository
 
@@ -33,17 +33,17 @@ For the first time you run the container, the password you should use is "dba". 
 Also, if you don't know the default graph URI, don't include it in your run command. Otherwise, the queries will not work against the endpoint.
 
 ```bash
-docker run --name wp-virtuoso-httpd \
-    -p 8890:8890 -p 1111:1111 \
-    -p 8080:80 -p 443:443 \
+
+docker run --rm --name wikipathways-virtuoso-httpd \
+    -p 8895:8890 -p 1115:1111 \
+    -p 8085:80 -p 449:443 \
     -e DBA_PASSWORD=PASSWORD_HERE \
     -e SPARQL_UPDATE=true \
-    -e DEFAULT_GRAPH=http://example.com \
-    -e SNORQL_ENDPOINT=https://sparql.wikipathways.org/sparql \
+    -e SNORQL_ENDPOINT=http://sparql.wikipathways.org/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/wikipathways/SPARQLQueries \
     -e SNORQL_TITLE="WikiPathways Snorql UI" \
-    -v /home/MarvinMartens/WikiPathways/data:/data \
     -v /home/MarvinMartens/WikiPathways/import:/import \
+    -v /home/MarvinMartens/WikiPathways/data:/data \
     -d virtuoso-httpd
 ```
 
