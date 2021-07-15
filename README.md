@@ -33,6 +33,7 @@ For the first time you run the container, the password you should use is "dba". 
 Also, if you don't know the default graph URI, don't include it in your run command. Otherwise, the queries will not work against the endpoint.
 
 ```bash
+
 docker run --rm --name wikipathways-virtuoso-httpd \
     -p 8895:8890 -p 1115:1111 \
     -p 8085:80 -p 449:443 \
@@ -41,8 +42,8 @@ docker run --rm --name wikipathways-virtuoso-httpd \
     -e SNORQL_ENDPOINT=http://sparql.wikipathways.org/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/wikipathways/SPARQLQueries \
     -e SNORQL_TITLE="WikiPathways Snorql UI" \
-    -v /home/var/www/sparql.wikipathways.org/sparqlendpoint/import:/import \
-    -v /home/var/www/sparql.wikipathways.org/sparqlendpoint/data:/data \
+    -v /home/MarvinMartens/WikiPathways/import:/import \
+    -v /home/MarvinMartens/WikiPathways/data:/data \
     -d virtuoso-httpd
 ```
 
@@ -56,5 +57,13 @@ If you need to import RDF data into Virtuoso, just make sure the RDF file is in 
 docker exec -i virtuoso-httpd bash -c "/load.sh FILE_TO_IMPORT GRAPH_IRI /data/load.log dba"
 ```
 
+## Troubleshooting
 
+If the SPARQL endpoint is down, try to stop and start the Docker container using
+```
+sudo docker stop wp-virtuoso-httpd
+sudo docker start wp-virtuoso-httpd
+```
+
+If the RDF is not working correctly, try reloading the data or data of the previous month using the documentation at [https://github.com/marvinm2/WikiPathwaysLoader](https://github.com/marvinm2/WikiPathwaysLoader)
 
