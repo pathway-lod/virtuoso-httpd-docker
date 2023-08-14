@@ -39,7 +39,7 @@ docker run --rm --name wikipathways-virtuoso-httpd \
     -p 8085:80 -p 449:443 \
     -e DBA_PASSWORD=PASSWORD_HERE \
     -e SPARQL_UPDATE=true \
-    -e SNORQL_ENDPOINT=http://sparql.wikipathways.org/sparql \
+    -e SNORQL_ENDPOINT=https://sparql.wikipathways.org/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/wikipathways/SPARQLQueries \
     -e SNORQL_TITLE="WikiPathways Snorql UI" \
     -v /home/MarvinMartens/WikiPathways/import:/import \
