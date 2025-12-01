@@ -167,10 +167,10 @@ SELECT * WHERE {
 ## 🌐 7. Deploying Production Hostnames (optional)
 
 Public UI:
-`plantmetwiki.bioinformatics.nl → container port 8088`
+`https://plantmetwiki.bioinformatics.nl` → container port 8088
 
 Public SPARQL endpoint:
-`sparql.plantmetwiki.bioinformatics.nl/sparql → container port 8900` 
+`https://sparql.plantmetwiki.bioinformatics.nl/sparql` → container port 8900
 
 
 ## 🛠 Troubleshooting 
