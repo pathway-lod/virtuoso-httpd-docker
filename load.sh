@@ -2,77 +2,54 @@
 #
 # Virtuoso Loader Script
 #
-# Author: Ammar Ammar (ammar257ammar@gmail.com)
-# Year: 2019
-# Adapted from Shangguan work 2010 (https://data-gov.tw.rpi.edu//2010/virtuoso/vload)
-# Description: loader script for Virtuoso
 # Usage: load [data_file] [graph_uri] [log_file] [virtuoso_password]
 
-# Get input arguments
-args=("$@")
+set -e
 
-if [ $# -ne 4 ]; then
-    echo "Wrong number of arguments. Correct usage: \"load [data_file] [graph_uri] [log_file] [virtuoso_password]\""
-else
-
-    VAD=/import
-    data_file=${args[0]}
-    graph_uri=${args[1]}
-    LOGFILE=${args[2]}
-    VIRT_PSWD=${args[3]}
-
-    # Status message
-    echo "Loading triples into graph <$graph_uri>..."
-
-    # Log into Virtuoso isql env
-    isql_cmd="isql-v -U dba -P $VIRT_PSWD"
-    isql_cmd_check="isql-v -U dba -P $VIRT_PSWD exec=\"checkpoint;\""
-
-    # Build the Virtuoso commands
-    grant1="grant execute on \"DB.DBA.EXEC_AS\" to \"SPARQL\";"
-    grant2="grant select on \"DB.DBA.SPARQL_SINV_2\" to \"SPARQL\";"
-    grant3="grant execute on \"DB.DBA.SPARQL_SINV_IMP\" to \"SPARQL\";"
-    grant4="grant SPARQL_LOAD_SERVICE_DATA to \"SPARQL\";"
-    grant5="grant SPARQL_SPONGE to \"SPARQL\";"
-    load_func="ld_dir('$VAD', '$data_file', '$graph_uri');"
-    run_func="rdf_loader_run();"
-    select_func="select * from DB.DBA.load_list WHERE ll_file LIKE '%${VAD}%';"
-   
-    # Run the Virtuoso commands
-    ${isql_cmd} << EOF &> ${LOGFILE}
-	    $grant1
-	    $grant2
-	    $grant3
-	    $grant4
-	    $grant5
-	    $load_func
-            $run_func
-            $select_func   
-            exit;
-    ${isql_cmd_check}
-
-EOF
-
-    # Write the load commands to the log 
-    echo "----------" >> ${LOGFILE}
-    echo $load_func >> ${LOGFILE}
-    echo $run_func >> ${LOGFILE}
-    echo ${select_func} >> ${LOGFILE}
-    echo "----------" >> ${LOGFILE}
-    
-    # Print out the log file
-    cat ${LOGFILE}
-
-    result=$?
-
-    if [ $result != 0 ]
-    then
-        "Failed to load! Check ${LOGFILE} for details."
-        exit 1
-    fi
-
-    # Status message
-    echo "Loading finished! Check ${LOGFILE} for details."
-    exit 0
+if [ "$#" -ne 4 ]; then
+    echo "Wrong number of arguments. Correct usage:"
+    echo "  load [data_file] [graph_uri] [log_file] [virtuoso_password]"
+    exit 1
 fi
 
+VAD="/import"
+DATA_FILE="$1"     # e.g. WP1.wp.ttl  (basename, not full path)
+GRAPH_URI="$2"     # e.g. http://rdf.plantwiki.org/
+LOGFILE="$3"       # e.g. /database/load.log
+VIRT_PSWD="$4"     # e.g. dba
+
+# Path to isql in the openlink/virtuoso-opensource-7 image
+ISQL="/opt/virtuoso-opensource/bin/isql"
+
+echo "Loading triples from ${VAD}/${DATA_FILE} into graph <${GRAPH_URI}>..."
+
+# Send commands to Virtuoso and append all output to the logfile
+"$ISQL" 1111 dba "$VIRT_PSWD" >> "$LOGFILE" 2>&1 <<EOF
+grant execute on "DB.DBA.EXEC_AS"       to "SPARQL";
+grant select  on "DB.DBA.SPARQL_SINV_2" to "SPARQL";
+grant execute on "DB.DBA.SPARQL_SINV_IMP" to "SPARQL";
+grant SPARQL_LOAD_SERVICE_DATA          to "SPARQL";
+grant SPARQL_SPONGE                     to "SPARQL";
+
+ld_dir('${VAD}', '${DATA_FILE}', '${GRAPH_URI}');
+rdf_loader_run();
+select ll_file, ll_graph, ll_state, ll_error
+  from DB.DBA.load_list
+ where ll_file like '%${VAD}%';
+EXIT;
+EOF
+
+# Add a small summary of what was executed
+{
+  echo "----------"
+  echo "ld_dir('${VAD}', '${DATA_FILE}', '${GRAPH_URI}');"
+  echo "rdf_loader_run();"
+  echo "select ll_file, ll_graph, ll_state, ll_error from DB.DBA.load_list where ll_file like '%${VAD}%';"
+  echo "----------"
+} >> "$LOGFILE"
+
+# Show the log to the user
+cat "$LOGFILE"
+
+echo "Loading finished! Check ${LOGFILE} for details."
+exit 0

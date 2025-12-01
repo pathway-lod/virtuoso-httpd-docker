@@ -1,69 +1,198 @@
-# Virtuoso-httpd docker image with data loader
+# 🌱 PlantMetWiki – Virtuoso + Apache + SNORQL Docker Image
 
-This repository is made to create a docker image that can run both Virtuoso and Apache web server in one container. It also facilitate data import into Virtuoso using custom-made bash script. The docker image also includes [SNORQL](https://github.com/ammar257ammar/snorql-extended), a SPARQL explorer interface to facilitate querying the knowledge graph.
+This repository builds a Docker image that runs Virtuoso OpenSource and an Apache web server in the same container.
+It also includes:
+	•	A data loader for RDF files (load.sh)
+	•	The SNORQL UI for browsing/querying the knowledge graph
+	•	A simple reverse proxy that allows the UI to query the Virtuoso SPARQL endpoint
 
-The WikiPathways SPARQL endpoint and SNORQL UI run on http://81.169.200.64:8895/sparql and http://81.169.200.64:8085. 
+This setup powers the PlantMetWiki knowledge graph project.
 
-## Step 1 - Clone this repository
+## 🚀 1. Clone This Repository
 
 ```bash
-git clone https://github.com/wikipathways/virtuoso-httpd-docker.git
-
+# forked repository 
+git clone git@github.com:pathway-lod/virtuoso-httpd-docker.git
 cd virtuoso-httpd-docker
 ```
 
 
 
-## Step 2 - Build the docker image
+## 🏗 2. Build the Docker Image
 
 ```bash
 docker build -t virtuoso-httpd .
 ```
 
+## 📦 3. Prepare Local Folders
 
+Create two directories:
 
-## Step 3 - Run the docker container
+Folder
+Purpose
+Mounted inside container
+PATH_TO_VIRTUOSO_DATA_FOLDER
+Stores Virtuoso DB files (persistent)
+/data
+PATH_TO_VIRTUOSO_IMPORT_FOLDER
+Contains .ttl RDF files to be imported
+/import
 
-Before running the container, make sure to create two folders: the first "PATH_TO_VIRTUOSO_DATA_FOLDER" is to store Virtuoso databases so you don't lose the graphs after importing them when the docker image is stopped (i.e. persistence). The second folder "PATH_TO_VIRTUOSO_IMPORT_FOLDER" is the location of RDF files that need to be imported into Virtuoso (the data loading tool will look for RDF files in this location which is mapped to /import inside the docker image).
+```bash 
+mkdir -p /local/data/plantwiki/plantwikifiles/data
+mkdir -p /local/data/plantwiki/plantwikifiles/import
+```
 
-Also, don't forget to replace "PASSWORD_HERE" with the password you set for Virtuoso.
+## ▶️ 4. Run the Container
 
-For the first time you run the container, the password you should use is "dba". Then, you can change it from the web interface "http://localhost:8890" and replace it in the next run for the container.
+  Important:
+  The first time you run Virtuoso, the password is dba.
+  You can change it later at http://localhost:8900.
 
-Also, if you don't know the default graph URI, don't include it in your run command. Otherwise, the queries will not work against the endpoint.
+If you don't know the default graph URI, don't include it in your run command. Otherwise, the queries will not work against the endpoint.
 
 ```bash
 
-docker run --rm --name wikipathways-virtuoso-httpd \
-    -p 8895:8890 -p 1115:1111 \
-    -p 8085:80 -p 449:443 \
-    -e DBA_PASSWORD=PASSWORD_HERE \
+docker run --name wikipathways-virtuoso-httpd \
+    -p 8900:8890 \
+    -p 1911:1111 \
+    -p 8088:80 \
+    -p 8449:443 \
+    -e DBA_PASSWORD=dba \
     -e SPARQL_UPDATE=true \
-    -e SNORQL_ENDPOINT=https://sparql.wikipathways.org/sparql \
-    -e SNORQL_EXAMPLES_REPO=https://github.com/wikipathways/SPARQLQueries \
-    -e SNORQL_TITLE="WikiPathways Snorql UI" \
-    -v /home/MarvinMartens/WikiPathways/import:/import \
-    -v /home/MarvinMartens/WikiPathways/data:/data \
+    -e SNORQL_ENDPOINT=/sparql \
+    -e SNORQL_EXAMPLES_REPO=https://github.com/pathway-lod/SPARQLQueries \
+    -e SNORQL_TITLE="Plant Pathways Wiki Snorql UI" \
+    -e DEFAULT_GRAPH="http://rdf.plantwiki.org/" \
+    -v /local/data/plantwiki/plantwikifiles/import:/import \
+    -v /local/data/plantwiki/plantwikifiles/data:/database \
     -d virtuoso-httpd
+
 ```
 
+Port summary:
+```
+8900 → Virtuoso UI + SPARQL       (http://localhost:8900/sparql)
+1911 → ISQL interactive console
+8088 → SNORQL user interface      (http://localhost:8088/)
+8449 → HTTPS if configured
+```
 
+Check if container is running: 
+```bash 
+docker ps -a | grep virtuoso-httpd 
+# view logs and errors 
+docker logs wikipathways-virtuoso-httpd
+``` 
 
-## Step 4 (Optional) - Loading data
+Stop + remove container:
+```bash 
+docker stop wikipathways-virtuoso-httpd && docker rm wikipathways-virtuoso-httpd
+```
 
-If you need to import RDF data into Virtuoso, just make sure the RDF file is in the directory you already mapped to /import in the run command (step 3). Then run the following command from terminal (make sure to change to file name and the graph IRI where you want to load the data under in Virtuoso):
+Backup + reset database:
+```bash 
+cd /local/data/plantwiki/plantwikifiles/data
+DATE=$(date +%Y%m%d_%H%M)
+mkdir -p dumps/backup_$DATE
+
+shopt -s extglob
+mv !(dumps) dumps/backup_$DATE/
+shopt -u extglob
+```
+
+Visit `http://localhost:8088/` to check if it is working (Use Forward Port when working on a remote server). 
+
+## 📥 5. Loading Data (RDF / TTL files)
+
+If you need to import RDF data into Virtuoso, just make sure the RDF file is in the directory you already mapped to /import in the run command (Step 4). Then run the following command from terminal (make sure to change to file name and the graph IRI where you want to load the data under in Virtuoso). 
+
+Place .ttl files into: 
+```bash
+/local/data/plantwiki/plantwikifiles/import
+```
+
+Note: IRI: Internal Resource Identifier 
+
+Inside your Docker image, the load script works like this:
+`/load.sh <file_or_pattern> <graph IRI> <logfile> <DBA password>`
+
+Then load the data: 
 
 ```bash
-docker exec -i virtuoso-httpd bash -c "/load.sh FILE_TO_IMPORT GRAPH_IRI /data/load.log dba"
+
+# run all the TTL files 
+docker exec -it wikipathways-virtuoso-httpd bash -c '
+for f in /import/*.ttl; do
+  bn=$(basename "$f")
+  echo "Loading $bn ..."
+  /load.sh "$bn" "http://rdf.plantwiki.org/" "/data/load.log" "dba"
+done
+'
 ```
 
-## Troubleshooting
+Check load status:
+```bash 
+docker exec -i wikipathways-virtuoso-httpd isql 1111 dba dba <<'EOF'
+SELECT ll_file, ll_graph, ll_state, ll_error FROM DB.DBA.load_list;
+EXIT;
+EOF
+```
 
-If the SPARQL endpoint is down, try to stop and start the Docker container using
+## 🔍 6. Querying the Data
+
+Visit SNORQL UI at:
+ `http://localhost:8088/` 
+
+Set the endpoint to: 
+ `http://localhost:8900/sparql` 
+
+
+Then run: 
+
+List graphs
+```sparql
+SELECT DISTINCT ?g WHERE {
+  GRAPH ?g { ?s ?p ?o }
+}
 ```
-sudo docker stop wp-virtuoso-httpd
-sudo docker start wp-virtuoso-httpd
+
+Look inside the PlantMetWiki graph
+```sparql
+SELECT * WHERE {
+  GRAPH <http://rdf.plantwiki.org/> { ?s ?p ?o }
+} LIMIT 20
 ```
+
+## 🌐 7. Deploying Production Hostnames (optional)
+
+Public UI:
+`plantmetwiki.bioinformatics.nl → container port 8088`
+
+Public SPARQL endpoint:
+`sparql.plantmetwiki.bioinformatics.nl/sparql → container port 8900` 
+
+
+## 🛠 Troubleshooting 
+
+Restart Virtuoso
+```
+docker restart wikipathways-virtuoso-httpd
+```
+
+If container fails after deleting /data manually
+
+Fix: stop container → empty data folder → restart → reload RDF.
 
 If the RDF is not working correctly, try reloading the data or data of the previous month using the documentation at [https://github.com/marvinm2/WikiPathwaysLoader](https://github.com/marvinm2/WikiPathwaysLoader)
 
+
+## 🧬 Notes for PlantMetWiki Development
+
+•	Default graph: `http://rdf.plantwiki.org/`
+•	Works with pathway RDF converted from GPML/WP
+•	SNORQL UI auto-configures via SNORQL_ENDPOINT env var
+•	The system uses a lightweight Apache reverse proxy to avoid CORS issues
+
+## LICENSE 
+Available at [LICENSE](LICENSE)

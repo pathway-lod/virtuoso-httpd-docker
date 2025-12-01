@@ -1,63 +1,70 @@
-FROM tenforce/virtuoso:1.3.2-virtuoso7.2.5.1 as virtuoso
-MAINTAINER  ammar257ammar@gmail.com
+# Base: official OpenLink Virtuoso Open Source 7 image
+FROM openlink/virtuoso-opensource-7:latest
 
-FROM httpd:2.4 as apache
-
-FROM ubuntu:18.04
+LABEL maintainer="elena.delpup@wur.nl"
 
 USER root
+ENV DEBIAN_FRONTEND=noninteractive
 
-COPY --from=virtuoso /usr/local/virtuoso-opensource /usr/local/virtuoso-opensource
+# 1) Install Apache + Git (for SNORQL) + helper tools
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        apache2 \
+        git \
+        crudini \
+        openssl && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=virtuoso /dump_nquads_procedure.sql /dump_nquads_procedure.sql
+# Avoid the noisy "could not reliably determine the server name" warning
+RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf && \
+    a2enconf servername
 
-COPY --from=virtuoso /clean-logs.sh /clean-logs.sh
+# Enable Apache proxy modules and our SPARQL proxy config
+RUN a2enmod proxy proxy_http && \
+    a2enmod headers && \
+    echo "Include /etc/apache2/conf-available/sparql-proxy.conf" >> /etc/apache2/apache2.conf
 
-COPY --from=virtuoso /virtuoso.sh /virtuoso.sh
+COPY ./apache-sparql-proxy.conf /etc/apache2/conf-available/sparql-proxy.conf
+RUN a2enconf sparql-proxy
 
-COPY --from=apache /usr/local/apache2 /usr/local/apache2
+# 2) Clone Snorql UI
+#    We keep the old /usr/local/apache2/htdocs path (for script.sh),
+#    and make Apache's DocumentRoot (/var/www/html) point there too.
+RUN mkdir -p /usr/local/apache2 && \
+    rm -rf /usr/local/apache2/htdocs && \
+    git clone https://github.com/pathway-lod/Snorql-UI.git /usr/local/apache2/htdocs && \
+    rm -rf /var/www/html && \
+    ln -s /usr/local/apache2/htdocs /var/www/html
 
-COPY --from=apache /usr/local/bin/httpd-foreground /usr/local/bin/httpd-foreground
-
-RUN apt-get update
-RUN apt-get -y install git
-
-RUN rm -rf /usr/local/apache2/htdocs/ && git clone https://github.com/wikipathways/snorql-extended.git /usr/local/apache2/htdocs/
-
-COPY ./script.sh /script.sh
-
-RUN chmod 755 /script.sh
-RUN chmod +x script.sh
-
-COPY ./virtuoso.ini /virtuoso.ini
-
-COPY ./load.sh /load.sh
-
+# 3) Copy your helper scripts (NO custom virtuoso.ini here!)
+COPY ./script.sh     /script.sh
+COPY ./load.sh       /load.sh
 COPY ./entrypoint.sh /entrypoint.sh
 
-RUN mkdir -p /usr/local/apache2/htdocs/.well-known
-RUN chmod 755 /virtuoso.sh
-RUN chmod 755 /load.sh
-RUN chmod 755 /entrypoint.sh
+RUN chmod 755 /script.sh /load.sh /entrypoint.sh
 
-RUN apt-get update && \
-    apt-get install -yq libreadline7 openssl crudini && \
-    ln -s /lib/x86_64-linux-gnu/libreadline.so.7.0 /lib/x86_64-linux-gnu/libreadline.so.6 && \
-    apt-get install -yq libssl1.0-dev && \
-    apt-get install -yq --no-install-recommends \
-		libapr1-dev \
-		libaprutil1-dev \
-		libaprutil1-ldap
+# 4) Virtuoso configuration via environment variables
+#    /database is the canonical DB dir in the openlink image.
+#    We allow /database and /import for the bulk loader.
+ENV VIRT_Parameters_DirsAllowed="., /opt/virtuoso-opensource/vad, /database, /import, /tmp"
 
-COPY    ./httpd.conf    /usr/local/apache2/httpd.conf
-RUN     chmod 755       /usr/local/apache2/httpd.conf
+# (Optional but nice) set a default DBA password for dev
+ENV DBA_PASSWORD=dba
 
-ENV PATH /usr/local/virtuoso-opensource/bin/:$PATH
-ENV PATH /usr/local/apache2/bin:$PATH
+# Apache runtime vars (Debian layout)
+ENV APACHE_RUN_USER=www-data
+ENV APACHE_RUN_GROUP=www-data
+ENV APACHE_LOG_DIR=/var/log/apache2
+ENV APACHE_PID_FILE=/var/run/apache2/apache2.pid
 
-VOLUME /usr/local/apache2/htdocs
-VOLUME /data
-WORKDIR /data
+# 5) Ports: Virtuoso HTTP (8890), SQL (1111), Apache (80, 443)
 EXPOSE 8890 1111 80 443
- 
-ENTRYPOINT ["/entrypoint.sh"] 
+
+# 6) Volumes: Virtuoso data, Snorql UI (optional override)
+VOLUME /database
+VOLUME /usr/local/apache2/htdocs
+
+WORKDIR /database
+
+# 7) Custom entrypoint that starts Virtuoso and Apache
+ENTRYPOINT ["/entrypoint.sh"]
