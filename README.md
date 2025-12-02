@@ -120,6 +120,8 @@ Inside your Docker image, the load script works like this:
 Then load the data: 
 
 ```bash
+# created directory data in the docker 
+docker exec -it wikipathways-virtuoso-httpd mkdir -p /data
 
 # run all the TTL files 
 docker exec -it wikipathways-virtuoso-httpd bash -c '
@@ -175,10 +177,12 @@ Public SPARQL endpoint:
 
 ## 🛠 Troubleshooting 
 
-Restart Virtuoso
+Restart Virtuoso: 
 ```
 docker restart wikipathways-virtuoso-httpd
 ```
+
+If you want to make changes to the Snorql-UI, you have to remove and rebuild the container from the beginning. 
 
 If container fails after deleting /data manually
 
