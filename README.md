@@ -60,7 +60,7 @@ docker run --name wikipathways-virtuoso-httpd \
     -p 8449:443 \
     -e DBA_PASSWORD=dba \
     -e SPARQL_UPDATE=true \
-    -e SNORQL_ENDPOINT=/sparql \
+    -e SNORQL_ENDPOINT=https://sparql-plantmetwiki.bioinformatics.nl/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/pathway-lod/SPARQLQueries \
     -e SNORQL_TITLE="Plant Pathways Wiki Snorql UI" \
     -e DEFAULT_GRAPH="http://rdf.plantwiki.org/" \
