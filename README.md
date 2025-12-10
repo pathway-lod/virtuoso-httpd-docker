@@ -21,7 +21,12 @@ cd virtuoso-httpd-docker
 ## 🏗 2. Build the Docker Image
 
 ```bash
-docker build -t virtuoso-httpd .
+docker build --no-cache -t virtuoso-httpd .
+```
+
+Stop + remove container if there was already a running one:
+```bash 
+docker stop wikipathways-virtuoso-httpd && docker rm wikipathways-virtuoso-httpd
 ```
 
 ## 📦 3. Prepare Local Folders
@@ -47,7 +52,7 @@ mkdir -p /local/data/plantwiki/plantwikifiles/import
 
   Important:
   The first time you run Virtuoso, the password is dba.
-  You can change it later at http://localhost:8900.
+  You can change it later at http://localhost:8900/conductor > Systen Admin > User Accounts > dba user 
 
 If you don't know the default graph URI, don't include it in your run command. Otherwise, the queries will not work against the endpoint.
 
@@ -63,7 +68,7 @@ docker run --name wikipathways-virtuoso-httpd \
     -e SNORQL_ENDPOINT=https://sparql-plantmetwiki.bioinformatics.nl/sparql \
     -e SNORQL_EXAMPLES_REPO=https://github.com/pathway-lod/SPARQLQueries \
     -e SNORQL_TITLE="Plant Pathways Wiki Snorql UI" \
-    -e DEFAULT_GRAPH="http://rdf.plantwiki.org/" \
+    -e DEFAULT_GRAPH="http://plantmetwiki.bioinformatics.nl" \
     -v /local/data/plantwiki/plantwikifiles/import:/import \
     -v /local/data/plantwiki/plantwikifiles/data:/database \
     -d virtuoso-httpd
@@ -85,10 +90,7 @@ docker ps -a | grep virtuoso-httpd
 docker logs wikipathways-virtuoso-httpd
 ``` 
 
-Stop + remove container:
-```bash 
-docker stop wikipathways-virtuoso-httpd && docker rm wikipathways-virtuoso-httpd
-```
+Tip: if the UI is not updated, clear the cache with Cmd+Shift+R on Chrome on Mac. 
 
 Backup + reset database:
 ```bash 
@@ -128,7 +130,7 @@ docker exec -it wikipathways-virtuoso-httpd bash -c '
 for f in /import/*.ttl; do
   bn=$(basename "$f")
   echo "Loading $bn ..."
-  /load.sh "$bn" "http://rdf.plantwiki.org/" "/data/load.log" "dba"
+  /load.sh "$bn" "http://plantmetwiki.bioinformatics.nl/" "/data/load.log" "dba"
 done
 '
 ```
@@ -161,9 +163,12 @@ SELECT DISTINCT ?g WHERE {
 
 Look inside the PlantMetWiki graph
 ```sparql
-SELECT * WHERE {
-  GRAPH <http://rdf.plantwiki.org/> { ?s ?p ?o }
-} LIMIT 20
+SELECT ?s ?p ?o
+FROM <http://plantmetwiki.bioinformatics.nl/>
+WHERE {
+  ?s ?p ?o .
+}
+LIMIT 20
 ```
 
 ## 🌐 7. Deploying Production Hostnames (optional)
@@ -172,7 +177,7 @@ Public UI:
 `https://plantmetwiki.bioinformatics.nl` → container port 8088
 
 Public SPARQL endpoint:
-`https://sparql.plantmetwiki.bioinformatics.nl/sparql` → container port 8900
+`https://sparql-plantmetwiki.bioinformatics.nl/sparql` → container port 8900
 
 
 ## 🛠 Troubleshooting 
@@ -190,13 +195,26 @@ Fix: stop container → empty data folder → restart → reload RDF.
 
 If the RDF is not working correctly, try reloading the data or data of the previous month using the documentation at [https://github.com/marvinm2/WikiPathwaysLoader](https://github.com/marvinm2/WikiPathwaysLoader)
 
+To debug with OpenLink Virtuoso Interactive SQL, run in the image from the command line: 
+```
+docker exec -it wikipathways-virtuoso-httpd isql 1111 [account: dba] [password: pw for dba]
+
+-- How many triples are in that graph?
+SPARQL
+  SELECT (COUNT(*) AS ?triples)
+  WHERE { GRAPH <http://plantmetwiki.bioinformatics.nl/> { ?s ?p ?o } };
+;
+```
 
 ## 🧬 Notes for PlantMetWiki Development
 
-•	Default graph: `http://rdf.plantwiki.org/`
-•	Works with pathway RDF converted from GPML/WP
-•	SNORQL UI auto-configures via SNORQL_ENDPOINT env var
-•	The system uses a lightweight Apache reverse proxy to avoid CORS issues
+- Default graph: `http://rdf.plantwiki.org/`
+- Works with pathway RDF converted from GPML/WP
+- SNORQL UI auto-configures via SNORQL_ENDPOINT env var
+- The system uses a lightweight Apache reverse proxy to avoid CORS issues
+- To access Conductor: http://localhost:8900/conductor/
 
+
+ 
 ## LICENSE 
 Available at [LICENSE](LICENSE)
