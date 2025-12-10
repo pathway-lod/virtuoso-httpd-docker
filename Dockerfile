@@ -62,7 +62,6 @@ EXPOSE 8890 1111 80 443
 
 # 6) Volumes: Virtuoso data, Snorql UI (optional override)
 VOLUME /database
-VOLUME /usr/local/apache2/htdocs
 
 WORKDIR /database
 
