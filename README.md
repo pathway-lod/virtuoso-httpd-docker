@@ -21,7 +21,7 @@ cd virtuoso-httpd-docker
 ## 🏗 2. Build the Docker Image
 
 ```bash
-docker build --no-cache -t virtuoso-httpd .
+docker build --no-cache -t wikipathways-virtuoso-httpd .
 ```
 
 Stop + remove container if there was already a running one:
@@ -59,19 +59,19 @@ If you don't know the default graph URI, don't include it in your run command. O
 ```bash
 
 docker run --name wikipathways-virtuoso-httpd \
-    -p 8900:8890 \
-    -p 1911:1111 \
-    -p 8088:80 \
-    -p 8449:443 \
-    -e DBA_PASSWORD=dba \
-    -e SPARQL_UPDATE=true \
-    -e SNORQL_ENDPOINT=https://sparql-plantmetwiki.bioinformatics.nl/sparql \
-    -e SNORQL_EXAMPLES_REPO=https://github.com/pathway-lod/SPARQLQueries \
-    -e SNORQL_TITLE="Plant Pathways Wiki Snorql UI" \
-    -e DEFAULT_GRAPH="http://plantmetwiki.bioinformatics.nl" \
-    -v /local/data/plantwiki/plantwikifiles/import:/import \
-    -v /local/data/plantwiki/plantwikifiles/data:/database \
-    -d virtuoso-httpd
+  -p 8900:8890 \
+  -p 1911:1111 \
+  -p 8088:80 \
+  -p 8449:443 \
+  -e DBA_PASSWORD=dba \
+  -e SPARQL_UPDATE=true \
+  -e SNORQL_ENDPOINT=https://plantmetwiki.bioinformatics.nl/sparql \
+  -e SNORQL_EXAMPLES_REPO=https://github.com/pathway-lod/SPARQLQueries \
+  -e SNORQL_TITLE="Plant Pathways Wiki Snorql UI" \
+  -e DEFAULT_GRAPH="http://plantmetwiki.bioinformatics.nl" \
+  -v /local/data/plantwiki/plantwikifiles/import:/import \
+  -v /local/data/plantwiki/plantwikifiles/data:/database \
+  -d wikipathways-virtuoso-httpd
 
 ```
 
@@ -126,6 +126,7 @@ Then load the data:
 docker exec -it wikipathways-virtuoso-httpd mkdir -p /data
 
 # run all the TTL files 
+# Change the password! 
 docker exec -it wikipathways-virtuoso-httpd bash -c '
 for f in /import/*.ttl; do
   bn=$(basename "$f")
@@ -136,6 +137,7 @@ done
 ```
 
 Check load status:
+(Change the password!)
 ```bash 
 docker exec -i wikipathways-virtuoso-httpd isql 1111 dba dba <<'EOF'
 SELECT ll_file, ll_graph, ll_state, ll_error FROM DB.DBA.load_list;
@@ -159,6 +161,17 @@ List graphs
 SELECT DISTINCT ?g WHERE {
   GRAPH ?g { ?s ?p ?o }
 }
+```
+
+To count all the triples 
+```sparql
+SELECT ?g (COUNT(*) AS ?triples)
+WHERE {
+  GRAPH ?g { ?s ?p ?o }
+}
+GROUP BY ?g
+ORDER BY DESC(?triples)
+LIMIT 50
 ```
 
 Look inside the PlantMetWiki graph
@@ -202,7 +215,7 @@ docker exec -it wikipathways-virtuoso-httpd isql 1111 [account: dba] [password: 
 -- How many triples are in that graph?
 SPARQL
   SELECT (COUNT(*) AS ?triples)
-  WHERE { GRAPH <http://plantmetwiki.bioinformatics.nl/> { ?s ?p ?o } };
+  WHERE { GRAPH <https://plantmetwiki.bioinformatics.nl/> { ?s ?p ?o } };
 ;
 ```
 
